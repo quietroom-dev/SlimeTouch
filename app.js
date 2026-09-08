@@ -1,83 +1,41 @@
-const canvas =
-document.getElementById(
-"waterCanvas"
-);
-
-const gl =
-canvas.getContext(
-"webgl",
-{
+const canvas = document.getElementById("waterCanvas");
+const gl = canvas.getContext("webgl", {
 alpha: true,
 antialias: true,
 premultipliedAlpha: false
-}
-);
+});
 
-const background =
-document.getElementById(
-"background"
-);
-
-const waterAmount =
-document.getElementById(
-"waterAmount"
-);
-
-const waterValue =
-document.getElementById(
-"waterValue"
-);
-
-const backgroundInput =
-document.getElementById(
-"backgroundInput"
-);
-
-const resetButton =
-document.getElementById(
-"resetButton"
-);
+const background = document.getElementById("background");
+const waterAmount = document.getElementById("waterAmount");
+const waterValue = document.getElementById("waterValue");
+const backgroundInput = document.getElementById("backgroundInput");
+const resetButton = document.getElementById("resetButton");
 
 if (!gl) {
-
-alert(
-"このブラウザではWebGLを利用できません。"
-);
-
-throw new Error(
-"WebGL unavailable"
-);
+alert("このブラウザではWebGLを利用できません。");
+throw new Error("WebGL unavailable");
 }
 
 /* =====================================================
-WebGL shader
+Vertex Shader
 ===================================================== */
 
 const vertexShaderSource = `
-
 attribute vec2 a_position;
 
 varying vec2 v_uv;
 
 void main() {
-
-v_uv =
-a_position *
-0.5 +
-0.5;
-
-gl_Position =
-vec4(
-a_position,
-0.0,
-1.0
-);
+v_uv = a_position * 0.5 + 0.5;
+gl_Position = vec4(a_position, 0.0, 1.0);
 }
-
 `;
 
-const fragmentShaderSource = `
+/* =====================================================
+Fragment Shader
+===================================================== */
 
+const fragmentShaderSource = `
 precision highp float;
 
 varying vec2 v_uv;
@@ -85,133 +43,69 @@ varying vec2 v_uv;
 uniform sampler2D u_background;
 
 uniform float u_time;
-
 uniform float u_water;
 
 uniform vec2 u_resolution;
-
 uniform vec2 u_impact;
 
 uniform float u_impactStrength;
 
 uniform vec2 u_backgroundResolution;
 
-/* ---------------------------------
-hash
---------------------------------- */
+/* =====================================================
+Hash
+===================================================== */
 
-float hash(
-vec2 p
-) {
-
+float hash(vec2 p) {
 return fract(
 sin(
 dot(
 p,
-vec2(
-127.1,
-311.7
+vec2(127.1, 311.7)
 )
-)
-)
-*
-43758.5453123
+) * 43758.5453123
 );
 }
 
-/* ---------------------------------
-noise
---------------------------------- */
+/* =====================================================
+Noise
+===================================================== */
 
-float noise(
-vec2 p
-) {
+float noise(vec2 p) {
 
-vec2 i =
-floor(p);
+vec2 i = floor(p);
+vec2 f = fract(p);
 
-vec2 f =
-fract(p);
+f = f * f * (3.0 - 2.0 * f);
 
-f =
-f * f *
-(3.0 - 2.0 * f);
-
-float a =
-hash(i);
-
-float b =
-hash(
-i +
-vec2(
-1.0,
-0.0
-)
-);
-
-float c =
-hash(
-i +
-vec2(
-0.0,
-1.0
-)
-);
-
-float d =
-hash(
-i +
-vec2(
-1.0,
-1.0
-)
-);
+float a = hash(i);
+float b = hash(i + vec2(1.0, 0.0));
+float c = hash(i + vec2(0.0, 1.0));
+float d = hash(i + vec2(1.0, 1.0));
 
 return mix(
-mix(
-a,
-b,
-f.x
-),
-mix(
-c,
-d,
-f.x
-),
+mix(a, b, f.x),
+mix(c, d, f.x),
 f.y
 );
 }
 
-/* ---------------------------------
+/* =====================================================
 FBM
---------------------------------- */
+===================================================== */
 
-float fbm(
-vec2 p
-) {
+float fbm(vec2 p) {
 
-float value =
-0.0;
+float value = 0.0;
+float amplitude = 0.5;
 
-float amplitude =
-0.5;
-
-for (
-int i = 0;
-i < 5;
-i++
-) {
+for (int i = 0; i < 5; i++) {
 
 ```
-value +=
-  noise(p) *
-  amplitude;
+value += noise(p) * amplitude;
 
-p *=
-  2.0;
-
-amplitude *=
-  0.5;
+p *= 2.0;
+amplitude *= 0.5;
 ```
 
 }
@@ -219,56 +113,45 @@ amplitude *=
 return value;
 }
 
-/* ---------------------------------
-スライムの変形
---------------------------------- */
+/* =====================================================
+スライム変形範囲
+===================================================== */
 
-float slimeDeform(
-vec2 uv
-) {
+float slimeDeform(vec2 uv) {
 
 /*
-画面の縦横比を補正。
+画面の縦横比を補正して
 タップ範囲を正円にする。
 */
 
-vec2 aspect =
-vec2(
-u_resolution.x /
-u_resolution.y,
+vec2 aspect = vec2(
+u_resolution.x / u_resolution.y,
 1.0
 );
 
-vec2 p =
-(uv - u_impact) *
-aspect;
+vec2 p = (uv - u_impact) * aspect;
 
-float dist =
-length(p);
+float dist = length(p);
 
 /*
-スライダーは
-変形する範囲を変更。
+スライダーは「サイズ」だけ変更。
 
 ```
 小さくしても
-変形の強さは弱くしない。
+押す強さ自体は弱くならない。
 ```
 
 */
 
 float radius =
 0.025 +
-u_water *
-0.50;
+u_water * 0.50;
 
 /*
-少しだけ不規則な
-スライムらしい輪郭。
+スライムらしい少し不規則な輪郭。
 */
 
-float n =
-fbm(
+float n = fbm(
 p * 12.0 +
 vec2(
 u_time * 0.35,
@@ -278,35 +161,29 @@ u_time * 0.35,
 
 float edge =
 radius +
-(
-n - 0.5
-) *
-0.025;
+(n - 0.5) * 0.025;
 
 /*
 押した範囲。
 */
 
-float deform =
-smoothstep(
+float deform = smoothstep(
 edge + 0.055,
 edge - 0.045,
 dist
 );
 
 /*
-中心を強くする。
+中心も少し強くする。
 */
 
-float inner =
-smoothstep(
+float inner = smoothstep(
 radius * 0.15,
 radius * 0.9,
 dist
 );
 
-return
-deform *
+return deform *
 (
 0.58 +
 0.42 * inner
@@ -314,30 +191,26 @@ deform *
 u_impactStrength;
 }
 
-/* ---------------------------------
-背景の変形
---------------------------------- */
+/* =====================================================
+背景画像を変形
+===================================================== */
 
 vec2 deformBackground(
 vec2 uv,
 float deform
 ) {
 
-vec2 center =
-u_impact;
+vec2 center = u_impact;
 
 vec2 direction =
-uv -
-center;
+uv - center;
 
 float distance =
-length(
-direction
-);
+length(direction);
 
 /*
 押した場所を
-レンズのように変形。
+レンズのように押し込む。
 */
 
 float lens =
@@ -352,11 +225,10 @@ distance
 );
 
 /*
-表面の揺らぎ。
+表面の細かい揺らぎ。
 */
 
-float wave =
-fbm(
+float wave = fbm(
 uv * 35.0 +
 vec2(
 u_time * 0.2,
@@ -364,22 +236,23 @@ u_time * 0.13
 )
 );
 
-vec2 distortion =
-vec2(
+vec2 distortion = vec2(
 wave - 0.5,
 
 ```
-  fbm(
-    uv * 41.0 -
-    vec2(
-      u_time * 0.15
-    )
-  ) - 0.5
-);
+fbm(
+  uv * 41.0 -
+  vec2(
+    u_time * 0.15,
+    u_time * 0.08
+  )
+) - 0.5
 ```
 
+);
+
 /*
-中心を押し込む。
+押し込み。
 */
 
 uv +=
@@ -388,8 +261,7 @@ lens *
 0.65;
 
 /*
-ネチネチした
-微細な揺れ。
+ネチネチした微細な揺れ。
 */
 
 uv +=
@@ -404,10 +276,8 @@ deform *
 uv =
 center +
 (
-uv -
-center
-)
-*
+uv - center
+) *
 (
 1.0 -
 deform * 0.10
@@ -416,34 +286,25 @@ deform * 0.10
 return uv;
 }
 
-/* ---------------------------------
-メイン
---------------------------------- */
+/* =====================================================
+Main
+===================================================== */
 
 void main() {
 
 /*
-画面座標を使う。
-
-```
-画像の比率変換より先に
-スライムの変形を行うことで、
-タップ範囲を正円にする。
-```
-
+まず画面座標で変形する。
+これによってタップ範囲が正円になる。
 */
 
-vec2 uv =
-v_uv;
+vec2 uv = v_uv;
 
 /*
-スライムの変形量。
+スライム変形量。
 */
 
 float deform =
-slimeDeform(
-uv
-);
+slimeDeform(uv);
 
 /*
 背景画像を変形。
@@ -456,9 +317,7 @@ deform
 );
 
 /*
----------------------------------
-画像を潰さず全体表示
----------------------------------
+画像の縦横比。
 */
 
 float screenRatio =
@@ -469,34 +328,38 @@ float imageRatio =
 u_backgroundResolution.x /
 u_backgroundResolution.y;
 
+/*
+contain方式。
+
+```
+画像全体を表示し、
+余った部分は透明にする。
+```
+
+*/
+
 vec2 imageUV =
 deformedUV;
 
-float inside =
-1.0;
+float inside = 1.0;
 
-if (
-screenRatio >
-imageRatio
-) {
+if (screenRatio > imageRatio) {
 
 ```
 /*
-  画面が画像より横長。
-  左右に白い余白。
+  画面の方が横長。
+  左右に余白ができる。
 */
 
 float scale =
   screenRatio /
   imageRatio;
 
-
 imageUV.x =
   (
     deformedUV.x -
     0.5
-  )
-  *
+  ) *
   scale +
   0.5;
 
@@ -505,9 +368,7 @@ if (
   imageUV.x < 0.0 ||
   imageUV.x > 1.0
 ) {
-
-  inside =
-    0.0;
+  inside = 0.0;
 }
 ```
 
@@ -515,21 +376,19 @@ if (
 
 ```
 /*
-  画面が画像より縦長。
-  上下に白い余白。
+  画面の方が縦長。
+  上下に余白ができる。
 */
 
 float scale =
   imageRatio /
   screenRatio;
 
-
 imageUV.y =
   (
     deformedUV.y -
     0.5
-  )
-  *
+  ) *
   scale +
   0.5;
 
@@ -538,9 +397,7 @@ if (
   imageUV.y < 0.0 ||
   imageUV.y > 1.0
 ) {
-
-  inside =
-    0.0;
+  inside = 0.0;
 }
 ```
 
@@ -548,12 +405,14 @@ if (
 
 /*
 画像の外側は透明。
-下の白い背景を表示。
+
+```
+下にある白い背景を表示する。
+```
+
 */
 
-if (
-inside < 0.5
-) {
+if (inside < 0.5) {
 
 ```
 gl_FragColor =
@@ -580,8 +439,8 @@ imageUV
 );
 
 /*
-白い水滴などは描画しない。
-画像そのものだけを表示。
+水滴などは描画しない。
+背景画像だけ表示。
 */
 
 gl_FragColor =
@@ -590,31 +449,23 @@ color.rgb,
 1.0
 );
 }
-
 `;
 
 /* =====================================================
-shader compile
+Shader作成
 ===================================================== */
 
-function createShader(
-type,
-source
-) {
+function createShader(type, source) {
 
 const shader =
-gl.createShader(
-type
-);
+gl.createShader(type);
 
 gl.shaderSource(
 shader,
 source
 );
 
-gl.compileShader(
-shader
-);
+gl.compileShader(shader);
 
 if (
 !gl.getShaderParameter(
@@ -625,9 +476,7 @@ gl.COMPILE_STATUS
 
 ```
 console.error(
-  gl.getShaderInfoLog(
-    shader
-  )
+  gl.getShaderInfoLog(shader)
 );
 
 throw new Error(
@@ -652,6 +501,10 @@ gl.FRAGMENT_SHADER,
 fragmentShaderSource
 );
 
+/* =====================================================
+Program
+===================================================== */
+
 const program =
 gl.createProgram();
 
@@ -665,9 +518,7 @@ program,
 fragmentShader
 );
 
-gl.linkProgram(
-program
-);
+gl.linkProgram(program);
 
 if (
 !gl.getProgramParameter(
@@ -676,16 +527,16 @@ gl.LINK_STATUS
 )
 ) {
 
+console.error(
+gl.getProgramInfoLog(program)
+);
+
 throw new Error(
-gl.getProgramInfoLog(
-program
-)
+"Program linking failed"
 );
 }
 
-gl.useProgram(
-program
-);
+gl.useProgram(program);
 
 /* =====================================================
 Quad
@@ -738,7 +589,7 @@ false,
 );
 
 /* =====================================================
-uniforms
+Uniform
 ===================================================== */
 
 const timeLocation =
@@ -820,7 +671,7 @@ gl.LINEAR
 );
 
 /* =====================================================
-画像をGPUへ
+画像をGPUへ送る
 ===================================================== */
 
 function uploadBackground() {
@@ -829,11 +680,7 @@ if (
 !background.complete ||
 !background.naturalWidth
 ) {
-
-```
 return;
-```
-
 }
 
 gl.bindTexture(
@@ -864,7 +711,7 @@ uploadBackground
 uploadBackground();
 
 /* =====================================================
-サイズ
+Canvasサイズ
 ===================================================== */
 
 function resize() {
@@ -880,14 +727,12 @@ window.devicePixelRatio || 1,
 
 canvas.width =
 Math.floor(
-rect.width *
-ratio
+rect.width * ratio
 );
 
 canvas.height =
 Math.floor(
-rect.height *
-ratio
+rect.height * ratio
 );
 
 gl.viewport(
@@ -906,12 +751,11 @@ resize
 resize();
 
 /* =====================================================
-スライムサイズ
+スライダー
 ===================================================== */
 
 waterValue.textContent =
-waterAmount.value +
-"%";
+waterAmount.value + "%";
 
 waterAmount.addEventListener(
 "input",
@@ -919,40 +763,28 @@ waterAmount.addEventListener(
 
 ```
 waterValue.textContent =
-  waterAmount.value +
-  "%";
+  waterAmount.value + "%";
 ```
 
 }
 );
 
 /* =====================================================
-スライムの接触位置
+接触位置
 ===================================================== */
 
-let impactX =
-0.5;
+let impactX = 0.5;
+let impactY = 0.5;
 
-let impactY =
-0.5;
+let impactStrength = 0;
 
-let impactStrength =
-0;
-
-let isDragging =
-false;
+let isDragging = false;
 
 /* =====================================================
 音
 ===================================================== */
 
-let audioContext =
-null;
-
-/*
-最初のタップで
-AudioContextを開始。
-*/
+let audioContext = null;
 
 function initAudio() {
 
@@ -980,10 +812,9 @@ audioContext.resume();
 }
 }
 
-/*
-スライムを潰した
-「むにっ」という音。
-*/
+/* =====================================================
+スライム音
+===================================================== */
 
 function playSlimeSquish() {
 
@@ -1001,15 +832,12 @@ audioContext.currentTime;
 const buffer =
 audioContext.createBuffer(
 1,
-audioContext.sampleRate *
-0.18,
+audioContext.sampleRate * 0.18,
 audioContext.sampleRate
 );
 
 const data =
-buffer.getChannelData(
-0
-);
+buffer.getChannelData(0);
 
 for (
 let i = 0;
@@ -1019,17 +847,13 @@ i++
 
 ```
 const t =
-  i /
-  data.length;
+  i / data.length;
 
 
 data[i] =
   (
-    Math.random() *
-    2 -
-    1
-  )
-  *
+    Math.random() * 2 - 1
+  ) *
   Math.pow(
     1 - t,
     1.7
@@ -1041,8 +865,7 @@ data[i] =
 const noise =
 audioContext.createBufferSource();
 
-noise.buffer =
-buffer;
+noise.buffer = buffer;
 
 const filter =
 audioContext.createBiquadFilter();
@@ -1085,13 +908,8 @@ noise
 audioContext.destination
 );
 
-noise.start(
-now
-);
-
-noise.stop(
-now + 0.18
-);
+noise.start(now);
+noise.stop(now + 0.18);
 
 /*
 低い「むにっ」という音。
@@ -1137,21 +955,15 @@ oscillator
 audioContext.destination
 );
 
-oscillator.start(
-now
-);
-
-oscillator.stop(
-now + 0.20
-);
+oscillator.start(now);
+oscillator.stop(now + 0.20);
 }
 
-/*
-音を連続再生しすぎない。
-*/
+/* =====================================================
+音の連続再生防止
+===================================================== */
 
-let lastSoundTime =
-0;
+let lastSoundTime = 0;
 
 function playTouchSound() {
 
@@ -1163,19 +975,13 @@ const now =
 performance.now();
 
 if (
-now -
-lastSoundTime <
+now - lastSoundTime <
 120
 ) {
-
-```
 return;
-```
-
 }
 
-lastSoundTime =
-now;
+lastSoundTime = now;
 
 playSlimeSquish();
 }
@@ -1184,33 +990,43 @@ playSlimeSquish();
 スライムを押す
 ===================================================== */
 
-function touchSlime(
-x,
-y
-) {
+function touchSlime(x, y) {
 
-impactX =
-x /
+const width =
 canvas.clientWidth;
 
-impactY =
-1 -
-y /
+const height =
 canvas.clientHeight;
 
+if (
+width <= 0 ||
+height <= 0
+) {
+return;
+}
+
+impactX =
+x / width;
+
+impactY =
+1 - y / height;
+
 /*
-変形の強さは最大。
+変形強度は常に最大。
+
+```
 スライダーは範囲だけ変更。
+```
+
 */
 
-impactStrength =
-1.0;
+impactStrength = 1.0;
 
 playTouchSound();
 }
 
 /* =====================================================
-指で触る
+指で押す
 ===================================================== */
 
 document.addEventListener(
@@ -1218,20 +1034,10 @@ document.addEventListener(
 event => {
 
 ```
-/*
-  UIを触った場合は
-  スライムを反応させない。
-*/
-
 if (
-  event.target.closest(
-    ".top-ui"
-  ) ||
-  event.target.closest(
-    ".control-panel"
-  )
+  event.target.closest(".top-ui") ||
+  event.target.closest(".control-panel")
 ) {
-
   return;
 }
 
@@ -1239,8 +1045,7 @@ if (
 initAudio();
 
 
-isDragging =
-  true;
+isDragging = true;
 
 
 const rect =
@@ -1248,11 +1053,8 @@ const rect =
 
 
 touchSlime(
-  event.clientX -
-    rect.left,
-
-  event.clientY -
-    rect.top
+  event.clientX - rect.left,
+  event.clientY - rect.top
 );
 ```
 
@@ -1274,14 +1076,9 @@ if (!isDragging) {
 
 
 if (
-  event.target.closest(
-    ".top-ui"
-  ) ||
-  event.target.closest(
-    ".control-panel"
-  )
+  event.target.closest(".top-ui") ||
+  event.target.closest(".control-panel")
 ) {
-
   return;
 }
 
@@ -1291,11 +1088,8 @@ const rect =
 
 
 touchSlime(
-  event.clientX -
-    rect.left,
-
-  event.clientY -
-    rect.top
+  event.clientX - rect.left,
+  event.clientY - rect.top
 );
 ```
 
@@ -1311,8 +1105,7 @@ document.addEventListener(
 () => {
 
 ```
-isDragging =
-  false;
+isDragging = false;
 ```
 
 }
@@ -1327,8 +1120,7 @@ document.addEventListener(
 () => {
 
 ```
-isDragging =
-  false;
+isDragging = false;
 ```
 
 }
@@ -1338,8 +1130,7 @@ isDragging =
 背景変更
 ===================================================== */
 
-let backgroundURL =
-null;
+let backgroundURL = null;
 
 backgroundInput.addEventListener(
 "change",
@@ -1347,7 +1138,8 @@ event => {
 
 ```
 const file =
-  event.target.files?.[0];
+  event.target.files &&
+  event.target.files[0];
 
 
 if (!file) {
@@ -1364,9 +1156,7 @@ if (backgroundURL) {
 
 
 backgroundURL =
-  URL.createObjectURL(
-    file
-  );
+  URL.createObjectURL(file);
 
 
 background.onload =
@@ -1392,12 +1182,9 @@ resetButton.addEventListener(
 () => {
 
 ```
-impactStrength =
-  0;
+impactStrength = 0;
 
-
-isDragging =
-  false;
+isDragging = false;
 ```
 
 }
@@ -1410,34 +1197,28 @@ isDragging =
 let startTime =
 performance.now();
 
-function render(
-currentTime
-) {
+function render(currentTime) {
 
 const time =
 (
 currentTime -
 startTime
-) /
-1000;
+) / 1000;
 
 /*
 指を離したあと
-ゆっくり戻る。
+ゆっくり元に戻す。
 
 ```
-0.985なので、
-前より少しゆっくり。
+0.985
+= ゆっくり戻る。
 ```
 
 */
 
-impactStrength *=
-0.985;
+impactStrength *= 0.985;
 
-gl.useProgram(
-program
-);
+gl.useProgram(program);
 
 gl.uniform1f(
 timeLocation,
@@ -1446,56 +1227,32 @@ time
 
 gl.uniform1f(
 waterLocation,
-
-```
 Number(
-  waterAmount.value
-) /
-100
-```
-
+waterAmount.value
+) / 100
 );
 
 gl.uniform2f(
 resolutionLocation,
-
-```
 canvas.width,
 canvas.height
-```
-
 );
 
 gl.uniform2f(
 backgroundResolutionLocation,
-
-```
-background.naturalWidth ||
-  1,
-
-background.naturalHeight ||
-  1
-```
-
+background.naturalWidth || 1,
+background.naturalHeight || 1
 );
 
 gl.uniform2f(
 impactLocation,
-
-```
 impactX,
 impactY
-```
-
 );
 
 gl.uniform1f(
 strengthLocation,
-
-```
 impactStrength
-```
-
 );
 
 gl.activeTexture(

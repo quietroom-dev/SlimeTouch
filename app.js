@@ -97,6 +97,7 @@ uniform vec2 u_impact;
 
 uniform float u_impactStrength;
 
+uniform float u_backgroundRatio;
 
 /* ---------------------------------
    hash
@@ -409,6 +410,36 @@ void main() {
   vec2 uv =
     v_uv;
 
+  float screenRatio =
+    u_resolution.x /
+    u_resolution.y;
+
+  float imageRatio =
+    u_backgroundRatio;
+
+  if (screenRatio > imageRatio) {
+
+    float scale =
+      imageRatio /
+      screenRatio;
+
+    uv.y =
+      (uv.y - .5) *
+      scale +
+      .5;
+
+  } else {
+
+    float scale =
+      screenRatio /
+      imageRatio;
+
+    uv.x =
+      (uv.x - .5) *
+      scale +
+      .5;
+  }
+
 
   /*
     スライムの変形量
@@ -648,6 +679,12 @@ const backgroundLocation =
   gl.getUniformLocation(
     program,
     "u_background"
+  );
+
+const backgroundRatioLocation =
+  gl.getUniformLocation(
+    program,
+    "u_backgroundRatio"
   );
 
 
@@ -1422,6 +1459,13 @@ function render(
     canvas.width,
     canvas.height
   );
+
+  gl.uniform1f(
+  backgroundRatioLocation,
+
+  background.naturalWidth /
+  background.naturalHeight
+);
 
 
   gl.uniform2f(

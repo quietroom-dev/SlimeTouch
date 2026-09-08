@@ -226,9 +226,13 @@ float slimeDeform(
   */
 
   float radius =
-  .025 +
-  u_water *
-  .50;
+  (
+    .025 +
+    u_water *
+    .50
+  )
+  *
+  u_impactStrength;
 
 
   /*

@@ -226,9 +226,9 @@ float slimeDeform(
   */
 
   float radius =
-    .08 +
-    u_impactStrength *
-    .48;
+  .025 +
+  u_water *
+  .50;
 
 
   /*
@@ -1170,36 +1170,25 @@ function touchSlime(
   y
 ) {
 
-  /*
-    canvas上の座標を
-    0〜1に変換
-  */
-
   impactX =
     x /
     canvas.clientWidth;
-
 
   impactY =
     1 -
     y /
     canvas.clientHeight;
 
-
   /*
-    スライダー値を
-    変形強度として使用。
+    スライダーは
+    「変形する範囲」だけを変更する。
+
+    変形そのものの強さは
+    常に最大に近い状態にする。
   */
 
   impactStrength =
-    Number(
-      waterAmount.value
-    ) / 100;
-
-
-  /*
-    音
-  */
+    1.0;
 
   playTouchSound();
 }

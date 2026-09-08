@@ -193,10 +193,10 @@ float fbm(
 
 
 /* ---------------------------------
-   水膜
+   スライムの変形
 --------------------------------- */
 
-float waterFilm(
+float slimeDeform(
   vec2 uv
 ) {
 
@@ -207,20 +207,34 @@ float waterFilm(
       1.0
     );
 
+
   vec2 p =
     (uv-u_impact)
     *
     aspect;
 
+
   float dist =
     length(p);
 
+
+  /*
+    指で押した範囲。
+
+    水量スライダーを
+    スライムの変形量として使用。
+  */
 
   float radius =
     .08 +
     u_impactStrength *
     .48;
 
+
+  /*
+    スライムらしい
+    少し不規則な輪郭
+  */
 
   float n =
     fbm(
@@ -241,13 +255,22 @@ float waterFilm(
     .09;
 
 
-  float film =
+  /*
+    押した部分。
+  */
+
+  float deform =
     smoothstep(
       edge+.06,
       edge-.05,
       dist
     );
 
+
+  /*
+    中心は強く、
+    外側に行くほど弱くする。
+  */
 
   float inner =
     smoothstep(
@@ -258,167 +281,18 @@ float waterFilm(
 
 
   return
-    film *
+    deform *
     (.55+.45*inner);
 }
 
 
 /* ---------------------------------
-   水滴
+   背景の変形
 --------------------------------- */
 
-float droplet(
+vec2 deformBackground(
   vec2 uv,
-  vec2 center,
-  float radius
-) {
-
-  vec2 aspect =
-    vec2(
-      u_resolution.x /
-      u_resolution.y,
-      1.0
-    );
-
-  vec2 p =
-    (uv-center)
-    *
-    aspect;
-
-
-  float d =
-    length(p);
-
-
-  float n =
-    fbm(
-      p*55.0
-    );
-
-
-  float r =
-    radius +
-    (
-      n-.5
-    )
-    *
-    radius*.18;
-
-
-  return
-    1.0 -
-    smoothstep(
-      r*.72,
-      r,
-      d
-    );
-}
-
-
-/* ---------------------------------
-   大量の水滴フィールド
---------------------------------- */
-
-float dropletField(
-  vec2 uv
-) {
-
-  float result = 0.0;
-
-
-  vec2 grid =
-    floor(
-      uv *
-      vec2(
-        18.0,
-        32.0
-      )
-    );
-
-
-  for (
-    int y=-1;
-    y<=1;
-    y++
-  ) {
-
-    for (
-      int x=-1;
-      x<=1;
-      x++
-    ) {
-
-      vec2 cell =
-        grid +
-        vec2(
-          float(x),
-          float(y)
-        );
-
-
-      float rnd =
-        hash(cell);
-
-
-      vec2 center =
-        (
-          cell +
-          vec2(
-            .5 +
-            (
-              rnd-.5
-            )*.7,
-
-            .5 +
-            (
-              hash(
-                cell+13.4
-              )-.5
-            )*.7
-          )
-        )
-        /
-        vec2(
-          18.0,
-          32.0
-        );
-
-
-      float size =
-        mix(
-          .008,
-          .032,
-          hash(
-            cell+41.3
-          )
-        );
-
-
-      result =
-        max(
-          result,
-          droplet(
-            uv,
-            center,
-            size
-          )
-        );
-    }
-  }
-
-
-  return result;
-}
-
-
-/* ---------------------------------
-   水の屈折
---------------------------------- */
-
-vec2 refractBackground(
-  vec2 uv,
-  float film,
-  float drops
+  float deform
 ) {
 
   vec2 center =
@@ -435,8 +309,13 @@ vec2 refractBackground(
     );
 
 
+  /*
+    スライムを押したときの
+    レンズのような変形。
+  */
+
   float lens =
-    drops *
+    deform *
     (
       1.0 -
       smoothstep(
@@ -446,6 +325,11 @@ vec2 refractBackground(
       )
     );
 
+
+  /*
+    スライム表面の
+    ゆっくりした揺らぎ。
+  */
 
   float wave =
     fbm(
@@ -460,6 +344,7 @@ vec2 refractBackground(
   vec2 distortion =
     vec2(
       wave-.5,
+
       fbm(
         uv*41.0
         -
@@ -470,17 +355,32 @@ vec2 refractBackground(
     );
 
 
+  /*
+    中心付近を
+    大きく引き伸ばす。
+  */
+
   uv +=
     direction *
     lens *
     .42;
 
 
+  /*
+    表面のネチネチした
+    微妙な揺れ。
+  */
+
   uv +=
     distortion *
-    film *
+    deform *
     .055;
 
+
+  /*
+    スライムを押した部分を
+    少しだけ拡大。
+  */
 
   uv =
     center +
@@ -490,7 +390,7 @@ vec2 refractBackground(
     *
     (
       1.0 -
-      film*.10
+      deform*.10
     );
 
 
@@ -508,116 +408,47 @@ void main() {
     v_uv;
 
 
-  float drops =
-    dropletField(
+  /*
+    スライムの変形量
+  */
+
+  float deform =
+    slimeDeform(
       uv
     )
     *
     u_water;
 
 
-  float film =
-    waterFilm(
-      uv
-    )
-    *
-    u_water;
+  /*
+    背景画像を変形
+  */
 
-
-  vec2 refractedUV =
-    refractBackground(
+  vec2 deformedUV =
+    deformBackground(
       uv,
-      film,
-      drops
+      deform
     );
 
+
+  /*
+    元画像
+  */
 
   vec4 color =
     texture2D(
       u_background,
-      refractedUV
+      deformedUV
     );
 
 
-  float waterBrightness =
-    film*.12 +
-    drops*.08;
+  /*
+    ここでは水滴や白い丸は
+    一切描画しない。
 
-
-  color.rgb +=
-    waterBrightness;
-
-
-  float edge =
-    drops -
-    smoothstep(
-      .0,
-      .8,
-      drops
-    );
-
-
-  color.rgb +=
-    vec3(
-      .75,
-      .9,
-      1.0
-    )
-    *
-    drops
-    *
-    .22;
-
-
-  float reflection =
-    pow(
-      max(
-        0.0,
-        fbm(
-          uv*70.0
-        )
-      ),
-      4.0
-    );
-
-
-  color.rgb +=
-    vec3(
-      .8,
-      .94,
-      1.0
-    )
-    *
-    reflection
-    *
-    film
-    *
-    .12;
-
-
-  color.rgb =
-    mix(
-      color.rgb,
-      color.rgb *
-      vec3(
-        .94,
-        .98,
-        1.02
-      ),
-      film*.25
-    );
-
-
-  color.rgb +=
-    edge *
-    vec3(
-      .8,
-      .95,
-      1.0
-    )
-    *
-    .45;
-
+    背景画像そのものだけを
+    変形させる。
+  */
 
   gl_FragColor =
     vec4(
@@ -952,7 +783,7 @@ resize();
 
 
 /* =====================================================
-   水量
+   スライム量
 ===================================================== */
 
 waterValue.textContent =
@@ -970,7 +801,7 @@ waterAmount.addEventListener(
 
 
 /* =====================================================
-   タップ位置
+   スライムの接触位置
 ===================================================== */
 
 let impactX = .5;
@@ -978,39 +809,387 @@ let impactY = .5;
 
 let impactStrength = 0;
 
+let isDragging = false;
+
 
 /* =====================================================
-   水流パーティクル
+   音
 ===================================================== */
 
-let streamParticles = [];
+let audioContext = null;
 
 
-function random(
-  min,
-  max
-) {
+/*
+  最初のタップで
+  AudioContextを開始。
+*/
 
-  return (
-    min +
-    Math.random() *
-    (max-min)
+function initAudio() {
+
+  if (!audioContext) {
+
+    audioContext =
+      new (
+        window.AudioContext ||
+        window.webkitAudioContext
+      )();
+  }
+
+
+  if (
+    audioContext.state ===
+    "suspended"
+  ) {
+
+    audioContext.resume();
+  }
+}
+
+
+/*
+  ネチネチ音
+*/
+
+function playSquishSound() {
+
+  if (!audioContext) {
+    return;
+  }
+
+
+  const now =
+    audioContext.currentTime;
+
+
+  /*
+    小さなノイズ
+  */
+
+  const buffer =
+    audioContext.createBuffer(
+      1,
+      audioContext.sampleRate * .12,
+      audioContext.sampleRate
+    );
+
+
+  const data =
+    buffer.getChannelData(0);
+
+
+  for (
+    let i = 0;
+    i < data.length;
+    i++
+  ) {
+
+    data[i] =
+      (
+        Math.random() * 2 - 1
+      )
+      *
+      Math.pow(
+        1 - i / data.length,
+        2
+      );
+  }
+
+
+  const noise =
+    audioContext.createBufferSource();
+
+
+  noise.buffer =
+    buffer;
+
+
+  /*
+    ローパスで
+    「ネチッ」とした
+    柔らかい音にする。
+  */
+
+  const filter =
+    audioContext.createBiquadFilter();
+
+
+  filter.type =
+    "lowpass";
+
+
+  filter.frequency.setValueAtTime(
+    900,
+    now
+  );
+
+
+  filter.frequency.exponentialRampToValueAtTime(
+    180,
+    now + .12
+  );
+
+
+  const gain =
+    audioContext.createGain();
+
+
+  gain.gain.setValueAtTime(
+    0,
+    now
+  );
+
+
+  gain.gain.linearRampToValueAtTime(
+    .12,
+    now + .015
+  );
+
+
+  gain.gain.exponentialRampToValueAtTime(
+    .001,
+    now + .12
+  );
+
+
+  noise
+    .connect(filter)
+    .connect(gain)
+    .connect(audioContext.destination);
+
+
+  noise.start(
+    now
+  );
+
+  noise.stop(
+    now + .12
+  );
+
+
+  /*
+    少し低い音を加えて
+    「むにっ」という感触を作る。
+  */
+
+  const oscillator =
+    audioContext.createOscillator();
+
+
+  const oscillatorGain =
+    audioContext.createGain();
+
+
+  oscillator.type =
+    "sine";
+
+
+  oscillator.frequency.setValueAtTime(
+    random(
+      90,
+      140
+    ),
+    now
+  );
+
+
+  oscillator.frequency.exponentialRampToValueAtTime(
+    55,
+    now + .13
+  );
+
+
+  oscillatorGain.gain.setValueAtTime(
+    0,
+    now
+  );
+
+
+  oscillatorGain.gain.linearRampToValueAtTime(
+    .08,
+    now + .015
+  );
+
+
+  oscillatorGain.gain.exponentialRampToValueAtTime(
+    .001,
+    now + .13
+  );
+
+
+  oscillator
+    .connect(oscillatorGain)
+    .connect(audioContext.destination);
+
+
+  oscillator.start(
+    now
+  );
+
+  oscillator.stop(
+    now + .13
   );
 }
 
 
-function shootWater(
+/*
+  プチッという小さな音
+*/
+
+function playPopSound() {
+
+  if (!audioContext) {
+    return;
+  }
+
+
+  const now =
+    audioContext.currentTime;
+
+
+  const oscillator =
+    audioContext.createOscillator();
+
+
+  const gain =
+    audioContext.createGain();
+
+
+  oscillator.type =
+    "sine";
+
+
+  oscillator.frequency.setValueAtTime(
+    random(
+      280,
+      420
+    ),
+    now
+  );
+
+
+  oscillator.frequency.exponentialRampToValueAtTime(
+    90,
+    now + .08
+  );
+
+
+  gain.gain.setValueAtTime(
+    .001,
+    now
+  );
+
+
+  gain.gain.exponentialRampToValueAtTime(
+    .13,
+    now + .006
+  );
+
+
+  gain.gain.exponentialRampToValueAtTime(
+    .001,
+    now + .08
+  );
+
+
+  oscillator
+    .connect(gain)
+    .connect(audioContext.destination);
+
+
+  oscillator.start(
+    now
+  );
+
+  oscillator.stop(
+    now + .08
+  );
+}
+
+
+/*
+  連続再生しすぎないための
+  タイマー
+*/
+
+let lastSoundTime = 0;
+
+
+function playTouchSound() {
+
+  if (!audioContext) {
+    return;
+  }
+
+
+  const now =
+    performance.now();
+
+
+  /*
+    約0.08秒に1回まで。
+  */
+
+  if (
+    now -
+    lastSoundTime
+    <
+    80
+  ) {
+    return;
+  }
+
+
+  lastSoundTime =
+    now;
+
+
+  /*
+    ランダムで
+    ネチネチ / プチプチ
+  */
+
+  if (
+    Math.random() < .72
+  ) {
+
+    playSquishSound();
+
+  } else {
+
+    playPopSound();
+  }
+}
+
+
+/* =====================================================
+   スライムを押す
+===================================================== */
+
+function touchSlime(
   x,
   y
 ) {
 
+  /*
+    canvas上の座標を
+    0〜1に変換
+  */
+
   impactX =
-    x / canvas.clientWidth;
+    x /
+    canvas.clientWidth;
+
 
   impactY =
     1 -
-    y / canvas.clientHeight;
+    y /
+    canvas.clientHeight;
 
+
+  /*
+    スライダー値を
+    変形強度として使用。
+  */
 
   impactStrength =
     Number(
@@ -1018,162 +1197,52 @@ function shootWater(
     ) / 100;
 
 
-  const amount =
-    Number(
-      waterAmount.value
-    );
-
-
-  const count =
-    Math.floor(
-      90 +
-      amount * 2.5
-    );
-
-
-  const sourceX =
-    canvas.clientWidth *
-    .5;
-
-
-  const sourceY =
-    canvas.clientHeight *
-    .34;
-
-
-  const dx =
-    x-sourceX;
-
-
-  const dy =
-    y-sourceY;
-
-
-  const distance =
-    Math.hypot(
-      dx,
-      dy
-    );
-
-
   /*
-    sourceと同じ位置を
-    タップした場合の
-    0除算を防ぐ
+    音
   */
 
-  if (distance < 0.001) {
-    return;
-  }
-
-
-  const nx =
-    dx /
-    distance;
-
-
-  const ny =
-    dy /
-    distance;
-
-
-  for (
-    let i=0;
-    i<count;
-    i++
-  ) {
-
-    const progress =
-      Math.random();
-
-
-    const spread =
-      random(
-        -1,
-        1
-      )
-      *
-      (
-        3 +
-        amount*.09
-      )
-      *
-      progress;
-
-
-    streamParticles.push({
-
-      x:
-        sourceX +
-        dx *
-        progress,
-
-      y:
-        sourceY +
-        dy *
-        progress,
-
-      vx:
-        nx *
-        random(
-          550,
-          850
-        ),
-
-      vy:
-        ny *
-        random(
-          550,
-          850
-        ),
-
-      size:
-        random(
-          1,
-          5
-        ),
-
-      life:
-        random(
-          .25,
-          .75
-        )
-    });
-  }
+  playTouchSound();
 }
 
 
 /* =====================================================
-   タップ・指でなぞる
+   指で触る
 ===================================================== */
-
-let isDragging = false;
-
-
-/*
-  指を押した
-*/
 
 document.addEventListener(
   "pointerdown",
   event => {
 
+    /*
+      UIを触った場合は
+      スライムを反応させない。
+    */
+
     if (
-      event.target.closest(".top-ui") ||
-      event.target.closest(".control-panel")
+      event.target.closest(
+        ".top-ui"
+      ) ||
+      event.target.closest(
+        ".control-panel"
+      )
     ) {
+
       return;
     }
 
 
-    isDragging = true;
+    initAudio();
+
+
+    isDragging =
+      true;
 
 
     const rect =
       canvas.getBoundingClientRect();
 
 
-    shootWater(
+    touchSlime(
       event.clientX -
         rect.left,
 
@@ -1184,9 +1253,9 @@ document.addEventListener(
 );
 
 
-/*
-  指を動かしている
-*/
+/* =====================================================
+   指でなぞる
+===================================================== */
 
 document.addEventListener(
   "pointermove",
@@ -1198,9 +1267,14 @@ document.addEventListener(
 
 
     if (
-      event.target.closest(".top-ui") ||
-      event.target.closest(".control-panel")
+      event.target.closest(
+        ".top-ui"
+      ) ||
+      event.target.closest(
+        ".control-panel"
+      )
     ) {
+
       return;
     }
 
@@ -1209,7 +1283,7 @@ document.addEventListener(
       canvas.getBoundingClientRect();
 
 
-    shootWater(
+    touchSlime(
       event.clientX -
         rect.left,
 
@@ -1220,41 +1294,30 @@ document.addEventListener(
 );
 
 
-/*
-  指を離した
-*/
+/* =====================================================
+   指を離す
+===================================================== */
 
 document.addEventListener(
   "pointerup",
   () => {
 
-    isDragging = false;
+    isDragging =
+      false;
   }
 );
 
 
-/*
-  指をキャンセルした
-*/
+/* =====================================================
+   タッチキャンセル
+===================================================== */
 
 document.addEventListener(
   "pointercancel",
   () => {
 
-    isDragging = false;
-  }
-);
-
-
-/*
-  指が画面外へ出た場合
-*/
-
-document.addEventListener(
-  "pointerleave",
-  () => {
-
-    isDragging = false;
+    isDragging =
+      false;
   }
 );
 
@@ -1263,7 +1326,8 @@ document.addEventListener(
    背景変更
 ===================================================== */
 
-let backgroundURL = null;
+let backgroundURL =
+  null;
 
 
 backgroundInput.addEventListener(
@@ -1314,10 +1378,11 @@ resetButton.addEventListener(
   "click",
   () => {
 
-    impactStrength = 0;
+    impactStrength =
+      0;
 
-    streamParticles = [];
-
+    isDragging =
+      false;
   }
 );
 
@@ -1342,11 +1407,12 @@ function render(
 
 
   /*
-    水の衝突を
-    徐々に消す
+    指を離したあと
+    スライムがゆっくり戻る。
   */
 
-  impactStrength *= .985;
+  impactStrength *=
+    .985;
 
 
   gl.useProgram(
@@ -1362,6 +1428,7 @@ function render(
 
   gl.uniform1f(
     waterLocation,
+
     Number(
       waterAmount.value
     ) / 100
@@ -1424,4 +1491,3 @@ function render(
 requestAnimationFrame(
   render
 );
-```

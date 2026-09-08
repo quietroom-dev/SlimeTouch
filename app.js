@@ -234,6 +234,13 @@ float slimeDeform(
   *
   u_impactStrength;
 
+  float deformPower =
+  mix(
+    1.8,
+    1.0,
+    u_water
+  );
+
 
   /*
     スライムらしい
@@ -296,7 +303,8 @@ float slimeDeform(
 
 vec2 deformBackground(
   vec2 uv,
-  float deform
+  float deform,
+  float deformPower
 ) {
 
   vec2 center =
@@ -365,9 +373,10 @@ vec2 deformBackground(
   */
 
   uv +=
-    direction *
-    lens *
-    .42;
+  direction *
+  lens *
+  .42 *
+  deformPower;
 
 
   /*
@@ -429,10 +438,11 @@ void main() {
   */
 
   vec2 deformedUV =
-    deformBackground(
-      uv,
-      deform
-    );
+  deformBackground(
+    uv,
+    deform,
+    deformPower
+  );
 
 
   /*

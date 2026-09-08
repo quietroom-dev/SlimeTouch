@@ -1405,7 +1405,7 @@ function render(
   */
 
   impactStrength *=
-    .985;
+    .97;
 
 
   gl.useProgram(

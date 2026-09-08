@@ -1,4 +1,3 @@
-```javascript
 const canvas =
   document.getElementById(
     "waterCanvas"

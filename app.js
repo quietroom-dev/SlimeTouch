@@ -134,8 +134,8 @@ vec2 f =
 fract(p);
 
 f =
-f*f*
-(3.0-2.0*f);
+f * f *
+(3.0 - 2.0 * f);
 
 float a =
 hash(i);
@@ -194,7 +194,7 @@ float value =
 0.0;
 
 float amplitude =
-.5;
+0.5;
 
 for (
 int i = 0;
@@ -211,7 +211,7 @@ p *=
   2.0;
 
 amplitude *=
-  .5;
+  0.5;
 ```
 
 }
@@ -229,13 +229,7 @@ vec2 uv
 
 /*
 画面の縦横比を補正。
-
-```
-これによって、
-スマホの縦長画面でも
-タップ範囲が正円になる。
-```
-
+タップ範囲を正円にする。
 */
 
 vec2 aspect =
@@ -254,19 +248,19 @@ length(p);
 
 /*
 スライダーは
-「変形範囲」を決める。
+変形する範囲を変更。
 
 ```
-小さくしても変形そのものは
-弱くならない。
+小さくしても
+変形の強さは弱くしない。
 ```
 
 */
 
 float radius =
-.025 +
+0.025 +
 u_water *
-.50;
+0.50;
 
 /*
 少しだけ不規則な
@@ -277,27 +271,26 @@ float n =
 fbm(
 p * 12.0 +
 vec2(
-u_time * .35,
--u_time * .22
+u_time * 0.35,
+-u_time * 0.22
 )
 );
 
 float edge =
 radius +
 (
-n - .5
+n - 0.5
 ) *
-.035;
+0.025;
 
 /*
-タップ中心から外側へ
-滑らかに変形。
+押した範囲。
 */
 
 float deform =
 smoothstep(
-edge + .055,
-edge - .045,
+edge + 0.055,
+edge - 0.045,
 dist
 );
 
@@ -307,16 +300,16 @@ dist
 
 float inner =
 smoothstep(
-radius * .15,
-radius * .9,
+radius * 0.15,
+radius * 0.9,
 dist
 );
 
 return
 deform *
 (
-.58 +
-.42 * inner
+0.58 +
+0.42 * inner
 ) *
 u_impactStrength;
 }
@@ -344,7 +337,7 @@ direction
 
 /*
 押した場所を
-レンズのように押し込む。
+レンズのように変形。
 */
 
 float lens =
@@ -353,47 +346,46 @@ deform *
 1.0 -
 smoothstep(
 0.0,
-.12,
+0.12,
 distance
 )
 );
 
 /*
-表面のゆっくりした揺らぎ。
+表面の揺らぎ。
 */
 
 float wave =
 fbm(
 uv * 35.0 +
 vec2(
-u_time * .2,
-u_time * .13
+u_time * 0.2,
+u_time * 0.13
 )
 );
 
 vec2 distortion =
 vec2(
-wave - .5,
+wave - 0.5,
 
 ```
   fbm(
     uv * 41.0 -
     vec2(
-      u_time * .15
+      u_time * 0.15
     )
-  ) - .5
+  ) - 0.5
 );
 ```
 
 /*
-押した中心を
-外側へ少し伸ばす。
+中心を押し込む。
 */
 
 uv +=
 direction *
 lens *
-.65;
+0.65;
 
 /*
 ネチネチした
@@ -403,11 +395,10 @@ lens *
 uv +=
 distortion *
 deform *
-.045;
+0.045;
 
 /*
-中心付近を少しだけ
-潰したように拡大。
+中心付近を少しだけ拡大。
 */
 
 uv =
@@ -419,7 +410,7 @@ center
 *
 (
 1.0 -
-deform * .10
+deform * 0.10
 );
 
 return uv;
@@ -432,11 +423,12 @@ return uv;
 void main() {
 
 /*
-画面座標をそのまま使う。
+画面座標を使う。
 
 ```
-先に画像比率を変換しないことで、
-タップ範囲を正円に保つ。
+画像の比率変換より先に
+スライムの変形を行うことで、
+タップ範囲を正円にする。
 ```
 
 */
@@ -445,7 +437,7 @@ vec2 uv =
 v_uv;
 
 /*
-スライム変形量
+スライムの変形量。
 */
 
 float deform =
@@ -454,7 +446,7 @@ uv
 );
 
 /*
-背景を変形
+背景画像を変形。
 */
 
 vec2 deformedUV =
@@ -465,8 +457,7 @@ deform
 
 /*
 ---------------------------------
-画像を潰さず、
-全体が見えるように表示
+画像を潰さず全体表示
 ---------------------------------
 */
 
@@ -491,24 +482,23 @@ imageRatio
 
 ```
 /*
-  画面の方が横長。
-
-  左右に余白を作り、
-  画像全体を表示。
+  画面が画像より横長。
+  左右に白い余白。
 */
 
 float scale =
   screenRatio /
   imageRatio;
 
+
 imageUV.x =
   (
     deformedUV.x -
-    .5
+    0.5
   )
   *
   scale +
-  .5;
+  0.5;
 
 
 if (
@@ -525,24 +515,23 @@ if (
 
 ```
 /*
-  画面の方が縦長。
-
-  上下に余白を作り、
-  画像全体を表示。
+  画面が画像より縦長。
+  上下に白い余白。
 */
 
 float scale =
   imageRatio /
   screenRatio;
 
+
 imageUV.y =
   (
     deformedUV.y -
-    .5
+    0.5
   )
   *
   scale +
-  .5;
+  0.5;
 
 
 if (
@@ -559,10 +548,11 @@ if (
 
 /*
 画像の外側は透明。
+下の白い背景を表示。
 */
 
 if (
-inside < .5
+inside < 0.5
 ) {
 
 ```
@@ -590,8 +580,8 @@ imageUV
 );
 
 /*
-スライム画像だけを表示。
 白い水滴などは描画しない。
+画像そのものだけを表示。
 */
 
 gl_FragColor =
@@ -941,10 +931,10 @@ waterValue.textContent =
 ===================================================== */
 
 let impactX =
-.5;
+0.5;
 
 let impactY =
-.5;
+0.5;
 
 let impactStrength =
 0;
@@ -992,7 +982,7 @@ audioContext.resume();
 
 /*
 スライムを潰した
-「むにっ」「ぺちゃっ」という音。
+「むにっ」という音。
 */
 
 function playSlimeSquish() {
@@ -1005,16 +995,14 @@ const now =
 audioContext.currentTime;
 
 /*
----------------------------------
-柔らかいノイズ
----------------------------------
+柔らかいノイズ。
 */
 
 const buffer =
 audioContext.createBuffer(
 1,
 audioContext.sampleRate *
-.18,
+0.18,
 audioContext.sampleRate
 );
 
@@ -1056,12 +1044,6 @@ audioContext.createBufferSource();
 noise.buffer =
 buffer;
 
-/*
-低いローパス。
-シャリシャリではなく
-柔らかい音にする。
-*/
-
 const filter =
 audioContext.createBiquadFilter();
 
@@ -1069,31 +1051,31 @@ filter.type =
 "lowpass";
 
 filter.frequency.setValueAtTime(
-600,
+500,
 now
 );
 
 filter.frequency.exponentialRampToValueAtTime(
-120,
-now + .18
+90,
+now + 0.18
 );
 
 const noiseGain =
 audioContext.createGain();
 
 noiseGain.gain.setValueAtTime(
-.001,
+0.001,
 now
 );
 
 noiseGain.gain.exponentialRampToValueAtTime(
-.18,
-now + .018
+0.16,
+now + 0.02
 );
 
 noiseGain.gain.exponentialRampToValueAtTime(
-.001,
-now + .18
+0.001,
+now + 0.18
 );
 
 noise
@@ -1108,13 +1090,11 @@ now
 );
 
 noise.stop(
-now + .18
+now + 0.18
 );
 
 /*
----------------------------------
-低い「むにっ」という音
----------------------------------
+低い「むにっ」という音。
 */
 
 const oscillator =
@@ -1127,28 +1107,28 @@ oscillator.type =
 "sine";
 
 oscillator.frequency.setValueAtTime(
-130,
+120,
 now
 );
 
 oscillator.frequency.exponentialRampToValueAtTime(
-52,
-now + .20
+48,
+now + 0.20
 );
 
 oscillatorGain.gain.setValueAtTime(
-.001,
+0.001,
 now
 );
 
 oscillatorGain.gain.exponentialRampToValueAtTime(
-.15,
-now + .015
+0.13,
+now + 0.02
 );
 
 oscillatorGain.gain.exponentialRampToValueAtTime(
-.001,
-now + .20
+0.001,
+now + 0.20
 );
 
 oscillator
@@ -1162,7 +1142,7 @@ now
 );
 
 oscillator.stop(
-now + .20
+now + 0.20
 );
 }
 
@@ -1181,10 +1161,6 @@ return;
 
 const now =
 performance.now();
-
-/*
-0.12秒に1回まで。
-*/
 
 if (
 now -
@@ -1223,7 +1199,7 @@ y /
 canvas.clientHeight;
 
 /*
-変形の強さは常に最大。
+変形の強さは最大。
 スライダーは範囲だけ変更。
 */
 
@@ -1397,7 +1373,6 @@ background.onload =
   () => {
 
     uploadBackground();
-
   };
 
 
@@ -1419,6 +1394,7 @@ resetButton.addEventListener(
 ```
 impactStrength =
   0;
+
 
 isDragging =
   false;
@@ -1446,17 +1422,18 @@ startTime
 1000;
 
 /*
-指を離したあと、
-ゆっくり元に戻る。
+指を離したあと
+ゆっくり戻る。
 
 ```
-.985 = ゆっくり
+0.985なので、
+前より少しゆっくり。
 ```
 
 */
 
 impactStrength *=
-.985;
+0.985;
 
 gl.useProgram(
 program

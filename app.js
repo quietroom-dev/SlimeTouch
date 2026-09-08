@@ -234,14 +234,6 @@ float slimeDeform(
   *
   u_impactStrength;
 
-  float deformPower =
-  mix(
-    1.8,
-    1.0,
-    u_water
-  );
-
-
   /*
     スライムらしい
     少し不規則な輪郭
@@ -303,8 +295,7 @@ float slimeDeform(
 
 vec2 deformBackground(
   vec2 uv,
-  float deform,
-  float deformPower
+  float deform
 ) {
 
   vec2 center =
@@ -375,9 +366,7 @@ vec2 deformBackground(
   uv +=
   direction *
   lens *
-  .42 *
-  deformPower;
-
+  .65;
 
   /*
     表面のネチネチした
@@ -426,12 +415,9 @@ void main() {
   */
 
   float deform =
-    slimeDeform(
-      uv
-    )
-    *
-    u_water;
-
+  slimeDeform(
+    uv
+  );
 
   /*
     背景画像を変形
@@ -440,10 +426,8 @@ void main() {
   vec2 deformedUV =
   deformBackground(
     uv,
-    deform,
-    deformPower
+    deform
   );
-
 
   /*
     元画像
@@ -998,10 +982,7 @@ function playSquishSound() {
 
 
   oscillator.frequency.setValueAtTime(
-    random(
-      90,
-      140
-    ),
+    90 + Math.random() * 50,
     now
   );
 
@@ -1073,10 +1054,7 @@ function playPopSound() {
 
 
   oscillator.frequency.setValueAtTime(
-    random(
-      280,
-      420
-    ),
+    280 + Math.random() * 140,
     now
   );
 

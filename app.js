@@ -1,3 +1,4 @@
+```javascript
 const canvas =
   document.getElementById(
     "waterCanvas"
@@ -216,20 +217,11 @@ float waterFilm(
     length(p);
 
 
-  /*
-    水が画面に
-    ぶつかった中心
-  */
-
   float radius =
     .08 +
     u_impactStrength *
     .48;
 
-
-  /*
-    不規則な水膜
-  */
 
   float n =
     fbm(
@@ -257,10 +249,6 @@ float waterFilm(
       dist
     );
 
-
-  /*
-    中央から薄く広がる
-  */
 
   float inner =
     smoothstep(
@@ -303,11 +291,6 @@ float droplet(
     length(p);
 
 
-  /*
-    水滴の輪郭を
-    少し不規則にする
-  */
-
   float n =
     fbm(
       p*55.0
@@ -343,15 +326,6 @@ float dropletField(
 
   float result = 0.0;
 
-
-  /*
-    グリッド状に並べてから
-    ノイズで崩す。
-
-    実際の水滴は
-    完全なランダム配置より
-    こうした方が自然。
-  */
 
   vec2 grid =
     floor(
@@ -448,12 +422,6 @@ vec2 refractBackground(
   float drops
 ) {
 
-  /*
-    水膜の中で
-    背景を局所的に
-    引き伸ばす。
-  */
-
   vec2 center =
     u_impact;
 
@@ -468,10 +436,6 @@ vec2 refractBackground(
     );
 
 
-  /*
-    水滴の球面レンズ効果
-  */
-
   float lens =
     drops *
     (
@@ -483,10 +447,6 @@ vec2 refractBackground(
       )
     );
 
-
-  /*
-    水膜の波
-  */
 
   float wave =
     fbm(
@@ -511,10 +471,6 @@ vec2 refractBackground(
     );
 
 
-  /*
-    強い屈折
-  */
-
   uv +=
     direction *
     lens *
@@ -526,10 +482,6 @@ vec2 refractBackground(
     film *
     .055;
 
-
-  /*
-    少し拡大
-  */
 
   uv =
     center +
@@ -557,10 +509,6 @@ void main() {
     v_uv;
 
 
-  /*
-    現在の水滴
-  */
-
   float drops =
     dropletField(
       uv
@@ -568,10 +516,6 @@ void main() {
     *
     u_water;
 
-
-  /*
-    水膜
-  */
 
   float film =
     waterFilm(
@@ -581,11 +525,6 @@ void main() {
     u_water;
 
 
-  /*
-    背景を水越しに
-    屈折させる
-  */
-
   vec2 refractedUV =
     refractBackground(
       uv,
@@ -594,20 +533,12 @@ void main() {
     );
 
 
-  /*
-    元画像
-  */
-
   vec4 color =
     texture2D(
       u_background,
       refractedUV
     );
 
-
-  /*
-    水の透明感
-  */
 
   float waterBrightness =
     film*.12 +
@@ -618,10 +549,6 @@ void main() {
     waterBrightness;
 
 
-  /*
-    水滴の縁
-  */
-
   float edge =
     drops -
     smoothstep(
@@ -630,10 +557,6 @@ void main() {
       drops
     );
 
-
-  /*
-    フレネル風ハイライト
-  */
 
   color.rgb +=
     vec3(
@@ -646,10 +569,6 @@ void main() {
     *
     .22;
 
-
-  /*
-    水膜の反射
-  */
 
   float reflection =
     pow(
@@ -677,10 +596,6 @@ void main() {
     .12;
 
 
-  /*
-    透明な青白い水の色
-  */
-
   color.rgb =
     mix(
       color.rgb,
@@ -693,11 +608,6 @@ void main() {
       film*.25
     );
 
-
-  /*
-    水滴の境界を
-    明るくする
-  */
 
   color.rgb +=
     edge *
@@ -1109,11 +1019,6 @@ function shootWater(
     ) / 100;
 
 
-  /*
-    実際の水流を
-    大量に生成
-  */
-
   const amount =
     Number(
       waterAmount.value
@@ -1150,6 +1055,17 @@ function shootWater(
       dx,
       dy
     );
+
+
+  /*
+    sourceと同じ位置を
+    タップした場合の
+    0除算を防ぐ
+  */
+
+  if (distance < 0.001) {
+    return;
+  }
 
 
   const nx =
@@ -1229,25 +1145,14 @@ function shootWater(
 
 
 /* =====================================================
-   タップ
+   タップ・指でなぞる
 ===================================================== */
 
-canvas.addEventListener(
-  "pointerdown",
-  event => {
-
-    shootWater(
-      event.clientX,
-      event.clientY
-    );
-  }
-);
+let isDragging = false;
 
 
 /*
-  実際にはcanvasが
-  pointer-events:noneなので
-  documentで拾う。
+  指を押した
 */
 
 document.addEventListener(
@@ -1255,12 +1160,47 @@ document.addEventListener(
   event => {
 
     if (
-      event.target.closest(
-        ".top-ui"
-      ) ||
-      event.target.closest(
-        ".control-panel"
-      )
+      event.target.closest(".top-ui") ||
+      event.target.closest(".control-panel")
+    ) {
+      return;
+    }
+
+
+    isDragging = true;
+
+
+    const rect =
+      canvas.getBoundingClientRect();
+
+
+    shootWater(
+      event.clientX -
+        rect.left,
+
+      event.clientY -
+        rect.top
+    );
+  }
+);
+
+
+/*
+  指を動かしている
+*/
+
+document.addEventListener(
+  "pointermove",
+  event => {
+
+    if (!isDragging) {
+      return;
+    }
+
+
+    if (
+      event.target.closest(".top-ui") ||
+      event.target.closest(".control-panel")
     ) {
       return;
     }
@@ -1277,6 +1217,45 @@ document.addEventListener(
       event.clientY -
         rect.top
     );
+  }
+);
+
+
+/*
+  指を離した
+*/
+
+document.addEventListener(
+  "pointerup",
+  () => {
+
+    isDragging = false;
+  }
+);
+
+
+/*
+  指をキャンセルした
+*/
+
+document.addEventListener(
+  "pointercancel",
+  () => {
+
+    isDragging = false;
+  }
+);
+
+
+/*
+  指が画面外へ出た場合
+*/
+
+document.addEventListener(
+  "pointerleave",
+  () => {
+
+    isDragging = false;
   }
 );
 
@@ -1446,3 +1425,4 @@ function render(
 requestAnimationFrame(
   render
 );
+```

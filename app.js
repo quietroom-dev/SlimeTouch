@@ -8,16 +8,9 @@ const resetButton=document.getElementById("resetButton");
 
 if(!gl){alert("このブラウザではWebGLを利用できません。");throw new Error("WebGL unavailable");}
 
-const vertexShaderSource=`
-attribute vec2 a_position;
-varying vec2 v_uv;
-void main(){
-v_uv=a_position*0.5+0.5;
-gl_Position=vec4(a_position,0.0,1.0);
-}`;
+const vertexShaderSource=`attribute vec2 a_position;varying vec2 v_uv;void main(){v_uv=a_position*0.5+0.5;gl_Position=vec4(a_position,0.0,1.0);}`;
 
-const fragmentShaderSource=`
-precision highp float;
+const fragmentShaderSource=`precision highp float;
 varying vec2 v_uv;
 uniform sampler2D u_background;
 uniform float u_time;
@@ -28,17 +21,9 @@ uniform float u_impactStrength;
 uniform vec2 u_backgroundResolution;
 
 float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453123);}
-float noise(vec2 p){
-vec2 i=floor(p),f=fract(p);
-f=f*f*(3.0-2.0*f);
-float a=hash(i),b=hash(i+vec2(1.0,0.0)),c=hash(i+vec2(0.0,1.0)),d=hash(i+vec2(1.0,1.0));
-return mix(mix(a,b,f.x),mix(c,d,f.x),f.y);
-}
-float fbm(vec2 p){
-float value=0.0,amplitude=0.5;
-for(int i=0;i<5;i++){value+=noise(p)*amplitude;p*=2.0;amplitude*=0.5;}
-return value;
-}
+float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);float a=hash(i),b=hash(i+vec2(1.0,0.0)),c=hash(i+vec2(0.0,1.0)),d=hash(i+vec2(1.0,1.0));return mix(mix(a,b,f.x),mix(c,d,f.x),f.y);}
+float fbm(vec2 p){float value=0.0,amplitude=0.5;for(int i=0;i<5;i++){value+=noise(p)*amplitude;p*=2.0;amplitude*=0.5;}return value;}
+
 float slimeDeform(vec2 uv){
 vec2 aspect=vec2(u_resolution.x/u_resolution.y,1.0);
 vec2 p=(uv-u_impact)*aspect;
@@ -50,6 +35,7 @@ float deform=smoothstep(edge+0.055,edge-0.045,dist);
 float inner=smoothstep(radius*0.15,radius*0.9,dist);
 return deform*(0.58+0.42*inner)*u_impactStrength;
 }
+
 vec2 deformBackground(vec2 uv,float deform){
 vec2 center=u_impact;
 vec2 direction=uv-center;
@@ -62,6 +48,7 @@ uv+=distortion*deform*0.045;
 uv=center+(uv-center)*(1.0-deform*0.10);
 return uv;
 }
+
 void main(){
 vec2 uv=v_uv;
 float deform=slimeDeform(uv);
@@ -70,6 +57,7 @@ float screenRatio=u_resolution.x/u_resolution.y;
 float imageRatio=u_backgroundResolution.x/u_backgroundResolution.y;
 vec2 imageUV=deformedUV;
 float inside=1.0;
+
 if(screenRatio>imageRatio){
 float scale=screenRatio/imageRatio;
 imageUV.x=(deformedUV.x-0.5)*scale+0.5;
@@ -79,6 +67,7 @@ float scale=imageRatio/screenRatio;
 imageUV.y=(deformedUV.y-0.5)*scale+0.5;
 if(imageUV.y<0.0||imageUV.y>1.0)inside=0.0;
 }
+
 if(inside<0.5){gl_FragColor=vec4(0.0);return;}
 vec4 color=texture2D(u_background,imageUV);
 gl_FragColor=vec4(color.rgb,1.0);
@@ -154,11 +143,12 @@ let impactY=0.5;
 let impactStrength=0;
 let isDragging=false;
 
-```js
 let audioContext=null;
 let soundBuffers=[];
 let soundReady=false;
 let nextDragSoundTime=0;
+let lastSoundIndex=-1;
+
 const soundFiles=["sounds/sticky01.mp3","sounds/sticky02.mp3","sounds/sticky03.mp3","sounds/sticky04.mp3","sounds/sticky05.mp3","sounds/sticky06.mp3"];
 
 async function initAudio(){
@@ -168,17 +158,18 @@ if(!AudioContext)return null;
 audioContext=new AudioContext();
 }
 if(audioContext.state==="suspended")await audioContext.resume();
+
 if(!soundReady){
-soundReady=true;
 try{
 soundBuffers=await Promise.all(soundFiles.map(async file=>{
 const response=await fetch(file);
+if(!response.ok)throw new Error("音声ファイルが見つかりません: "+file);
 const arrayBuffer=await response.arrayBuffer();
 return await audioContext.decodeAudioData(arrayBuffer);
 }));
+soundReady=true;
 }catch(error){
 console.error("音声読み込み失敗:",error);
-soundReady=false;
 }
 }
 return audioContext;
@@ -186,12 +177,16 @@ return audioContext;
 
 function playReferenceSound(volume=0.7){
 if(!audioContext||audioContext.state!=="running"||!soundBuffers.length)return;
-const buffer=soundBuffers[Math.floor(Math.random()*soundBuffers.length)];
+
+let index=Math.floor(Math.random()*soundBuffers.length);
+if(soundBuffers.length>1&&index===lastSoundIndex)index=(index+1)%soundBuffers.length;
+lastSoundIndex=index;
+
 const source=audioContext.createBufferSource();
 const gain=audioContext.createGain();
-source.buffer=buffer;
-source.playbackRate.value=0.92+Math.random()*0.16;
-gain.gain.setValueAtTime(volume*(0.82+Math.random()*0.18),audioContext.currentTime);
+source.buffer=soundBuffers[index];
+source.playbackRate.value=0.94+Math.random()*0.12;
+gain.gain.setValueAtTime(volume*(0.88+Math.random()*0.12),audioContext.currentTime);
 source.connect(gain).connect(audioContext.destination);
 source.start();
 }
@@ -202,37 +197,45 @@ playReferenceSound(0.72);
 
 function playDragSound(){
 if(!audioContext||audioContext.state!=="running")return;
+
 const now=performance.now();
 if(now<nextDragSoundTime)return;
+
 nextDragSoundTime=now+230+Math.random()*420;
-playReferenceSound(0.28+Math.random()*0.12);
+playReferenceSound(0.26+Math.random()*0.12);
 }
 
 function playReleaseSound(){
-playReferenceSound(0.34);
+playReferenceSound(0.32);
+}
+
+function touchSlime(x,y,dragSound=false){
+const width=canvas.clientWidth;
+const height=canvas.clientHeight;
+if(width<=0||height<=0)return;
+
+impactX=x/width;
+impactY=1-y/height;
+impactStrength=1.0;
+
+if(dragSound)playDragSound();
 }
 
 function startAudioAndPlay(fn){
-initAudio().then(()=>fn()).catch(()=>{});
-}
-```
-
-function startAudioAndPlay(fn){
-const ctx=initAudio();
-if(!ctx)return;
-if(ctx.state==="running")fn();
-else ctx.resume().then(()=>fn()).catch(()=>{});
+initAudio().then(()=>{
+if(audioContext&&audioContext.state==="running")fn();
+}).catch(error=>console.error(error));
 }
 
 document.addEventListener("pointerdown",event=>{
 if(event.target.closest(".top-ui")||event.target.closest(".control-panel"))return;
 
 isDragging=true;
-nextDragSoundTime=performance.now()+180;
+nextDragSoundTime=performance.now()+220;
 
 const rect=canvas.getBoundingClientRect();
 touchSlime(event.clientX-rect.left,event.clientY-rect.top,false);
-startAudioAndPlay(playSlimePressSound);
+startAudioAndPlay(playPressSound);
 });
 
 document.addEventListener("pointermove",event=>{
@@ -244,7 +247,7 @@ touchSlime(event.clientX-rect.left,event.clientY-rect.top,true);
 });
 
 document.addEventListener("pointerup",()=>{
-if(isDragging)playSlimeReleaseSound();
+if(isDragging)playReleaseSound();
 isDragging=false;
 });
 

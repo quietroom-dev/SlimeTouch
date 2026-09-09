@@ -217,12 +217,14 @@ if(!audioContext||audioContext.state!=="running"||!soundReady)return;
 const now=performance.now();
 if(now<nextDragSoundTime)return;
 
-nextDragSoundTime=now+155+Math.random()*45;
-
 const speed=Math.max(0,Math.min(dragSpeed,2.2));
 const normalized=speed/2.2;
+
+const interval=520-normalized*330;
+nextDragSoundTime=now+interval+Math.random()*80;
+
 const playbackRate=0.78+normalized*0.42;
-const volume=0.27+normalized*0.10;
+const volume=0.25+normalized*0.11;
 
 playReferenceSound(volume,playbackRate);
 }

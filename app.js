@@ -154,137 +154,68 @@ let impactY=0.5;
 let impactStrength=0;
 let isDragging=false;
 
+```js
 let audioContext=null;
+let soundBuffers=[];
+let soundReady=false;
 let nextDragSoundTime=0;
+const soundFiles=["sounds/sticky01.mp3","sounds/sticky02.mp3","sounds/sticky03.mp3","sounds/sticky04.mp3","sounds/sticky05.mp3","sounds/sticky06.mp3"];
 
-function initAudio(){
+async function initAudio(){
 if(!audioContext){
 const AudioContext=window.AudioContext||window.webkitAudioContext;
 if(!AudioContext)return null;
 audioContext=new AudioContext();
 }
-if(audioContext.state==="suspended")audioContext.resume().catch(()=>{});
+if(audioContext.state==="suspended")await audioContext.resume();
+if(!soundReady){
+soundReady=true;
+try{
+soundBuffers=await Promise.all(soundFiles.map(async file=>{
+const response=await fetch(file);
+const arrayBuffer=await response.arrayBuffer();
+return await audioContext.decodeAudioData(arrayBuffer);
+}));
+}catch(error){
+console.error("音声読み込み失敗:",error);
+soundReady=false;
+}
+}
 return audioContext;
 }
 
-/* 湿った「ネチッ」系の短い粘着音 */
-function playStickySound(volume=1){
-const ctx=audioContext;
-if(!ctx||ctx.state!=="running")return;
-
-const now=ctx.currentTime;
-const duration=0.16;
-const length=Math.floor(ctx.sampleRate*duration);
-const buffer=ctx.createBuffer(1,length,ctx.sampleRate);
-const data=buffer.getChannelData(0);
-
-for(let i=0;i<length;i++){
-const t=i/length;
-const attack=Math.min(1,t/0.025);
-const release=Math.pow(1-t,2.0);
-const wobble=Math.sin(t*38)*0.18;
-data[i]=(Math.random()*2-1)*attack*release*(0.55+wobble);
-}
-
-const source=ctx.createBufferSource();
-const filter=ctx.createBiquadFilter();
-const gain=ctx.createGain();
-
+function playReferenceSound(volume=0.7){
+if(!audioContext||audioContext.state!=="running"||!soundBuffers.length)return;
+const buffer=soundBuffers[Math.floor(Math.random()*soundBuffers.length)];
+const source=audioContext.createBufferSource();
+const gain=audioContext.createGain();
 source.buffer=buffer;
-filter.type="lowpass";
-filter.frequency.setValueAtTime(850+Math.random()*350,now);
-filter.frequency.exponentialRampToValueAtTime(380,now+duration);
-filter.Q.value=0.7;
-
-gain.gain.setValueAtTime(0.001,now);
-gain.gain.exponentialRampToValueAtTime(0.20*volume,now+0.018);
-gain.gain.exponentialRampToValueAtTime(0.001,now+duration);
-
-source.connect(filter).connect(gain).connect(ctx.destination);
-source.start(now);
-source.stop(now+duration);
+source.playbackRate.value=0.92+Math.random()*0.16;
+gain.gain.setValueAtTime(volume*(0.82+Math.random()*0.18),audioContext.currentTime);
+source.connect(gain).connect(audioContext.destination);
+source.start();
 }
 
-/* 小さく湿った「プチュ」 */
-function playSoftPop(volume=1){
-const ctx=audioContext;
-if(!ctx||ctx.state!=="running")return;
-
-const now=ctx.currentTime;
-const duration=0.12;
-const length=Math.floor(ctx.sampleRate*duration);
-const buffer=ctx.createBuffer(1,length,ctx.sampleRate);
-const data=buffer.getChannelData(0);
-
-for(let i=0;i<length;i++){
-const t=i/length;
-data[i]=(Math.random()*2-1)*Math.pow(1-t,3.0);
+function playPressSound(){
+playReferenceSound(0.72);
 }
 
-const source=ctx.createBufferSource();
-const filter=ctx.createBiquadFilter();
-const gain=ctx.createGain();
-
-source.buffer=buffer;
-filter.type="lowpass";
-filter.frequency.setValueAtTime(700+Math.random()*500,now);
-filter.frequency.exponentialRampToValueAtTime(250,now+duration);
-
-gain.gain.setValueAtTime(0.001,now);
-gain.gain.exponentialRampToValueAtTime(0.12*volume,now+0.008);
-gain.gain.exponentialRampToValueAtTime(0.001,now+duration);
-
-source.connect(filter).connect(gain).connect(ctx.destination);
-source.start(now);
-source.stop(now+duration);
-}
-
-/* 押した瞬間は「プチッ」ではなく粘着音を優先 */
-function playSlimePressSound(){
-const r=Math.random();
-if(r<0.72){
-playStickySound(1.0);
-}else{
-playSoftPop(0.7);
-}
-}
-
-/* ドラッグ中はかなり控えめ。不規則にだけ鳴る */
-function playSlimeDragSound(){
-const ctx=audioContext;
-if(!ctx||ctx.state!=="running")return;
-
+function playDragSound(){
+if(!audioContext||audioContext.state!=="running")return;
 const now=performance.now();
 if(now<nextDragSoundTime)return;
-
-/* 音の間隔を広くする */
-nextDragSoundTime=now+150+Math.random()*220;
-
-const r=Math.random();
-if(r<0.72){
-playStickySound(0.55);
-}else{
-playSoftPop(0.42);
-}
+nextDragSoundTime=now+230+Math.random()*420;
+playReferenceSound(0.28+Math.random()*0.12);
 }
 
-/* 離したとき */
-function playSlimeReleaseSound(){
-if(!audioContext||audioContext.state!=="running")return;
-playStickySound(0.65);
+function playReleaseSound(){
+playReferenceSound(0.34);
 }
 
-function touchSlime(x,y,dragSound=false){
-const width=canvas.clientWidth;
-const height=canvas.clientHeight;
-if(width<=0||height<=0)return;
-
-impactX=x/width;
-impactY=1-y/height;
-impactStrength=1.0;
-
-if(dragSound)playSlimeDragSound();
+function startAudioAndPlay(fn){
+initAudio().then(()=>fn()).catch(()=>{});
 }
+```
 
 function startAudioAndPlay(fn){
 const ctx=initAudio();

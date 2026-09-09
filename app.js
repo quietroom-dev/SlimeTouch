@@ -222,9 +222,16 @@ if(dragSound)playDragSound();
 }
 
 function startAudioAndPlay(fn){
-initAudio().then(()=>{
-if(audioContext&&audioContext.state==="running")fn();
-}).catch(error=>console.error(error));
+if(!audioContext){
+const AudioContext=window.AudioContext||window.webkitAudioContext;
+if(!AudioContext)return;
+audioContext=new AudioContext();
+}
+if(audioContext.state==="suspended"){
+audioContext.resume().then(()=>{initAudio().then(()=>fn()).catch(()=>{});}).catch(()=>{});
+}else{
+initAudio().then(()=>fn()).catch(()=>{});
+}
 }
 
 document.addEventListener("pointerdown",event=>{
@@ -270,7 +277,16 @@ background.src=backgroundURL;
 
 resetButton.addEventListener("click",()=>{
 impactStrength=0;
+impactX=0.5;
+impactY=0.5;
 isDragging=false;
+if(backgroundURL){
+URL.revokeObjectURL(backgroundURL);
+backgroundURL=null;
+}
+background.src="background.png";
+background.onload=()=>uploadBackground();
+backgroundInput.value="";
 });
 
 let startTime=performance.now();

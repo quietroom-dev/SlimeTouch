@@ -148,6 +148,10 @@ let soundBuffers=[];
 let soundReady=false;
 let nextDragSoundTime=0;
 let lastSoundIndex=-1;
+let lastPointerX=0;
+let lastPointerY=0;
+let lastPointerTime=0;
+let dragSpeed=0;
 
 const soundFiles=["sounds/sticky01.mp3","sounds/sticky02.mp3","sounds/sticky03.mp3","sounds/sticky04.mp3","sounds/sticky05.mp3","sounds/sticky06.mp3"];
 
@@ -175,38 +179,56 @@ console.error("音声読み込み失敗:",error);
 return audioContext;
 }
 
-function playReferenceSound(volume=0.7){
-if(!audioContext||audioContext.state!=="running"||!soundBuffers.length)return;
-
-let index=Math.floor(Math.random()*soundBuffers.length);
+function chooseSoundIndex(){
+const weights=[0.10,0.25,0.25,0.25,0.075,0.075];
+let random=Math.random();
+let index=0;
+for(let i=0;i<weights.length;i++){
+random-=weights[i];
+if(random<=0){index=i;break;}
+}
 if(soundBuffers.length>1&&index===lastSoundIndex)index=(index+1)%soundBuffers.length;
 lastSoundIndex=index;
+return index;
+}
 
+function playReferenceSound(volume=0.7,playbackRate=1.0){
+if(!audioContext||audioContext.state!=="running"||!soundBuffers.length)return;
+
+const index=chooseSoundIndex();
 const source=audioContext.createBufferSource();
 const gain=audioContext.createGain();
+
 source.buffer=soundBuffers[index];
-source.playbackRate.value=0.94+Math.random()*0.12;
-gain.gain.setValueAtTime(volume*(0.88+Math.random()*0.12),audioContext.currentTime);
+source.playbackRate.value=Math.max(0.65,Math.min(1.30,playbackRate*(0.97+Math.random()*0.06)));
+gain.gain.setValueAtTime(volume*(0.90+Math.random()*0.10),audioContext.currentTime);
+
 source.connect(gain).connect(audioContext.destination);
 source.start();
 }
 
 function playPressSound(){
-playReferenceSound(0.72);
+playReferenceSound(0.70,0.96);
 }
 
 function playDragSound(){
-if(!audioContext||audioContext.state!=="running")return;
+if(!audioContext||audioContext.state!=="running"||!soundReady)return;
 
 const now=performance.now();
 if(now<nextDragSoundTime)return;
 
-nextDragSoundTime=now+230+Math.random()*420;
-playReferenceSound(0.26+Math.random()*0.12);
+nextDragSoundTime=now+155+Math.random()*45;
+
+const speed=Math.max(0,Math.min(dragSpeed,2.2));
+const normalized=speed/2.2;
+const playbackRate=0.78+normalized*0.42;
+const volume=0.27+normalized*0.10;
+
+playReferenceSound(volume,playbackRate);
 }
 
 function playReleaseSound(){
-playReferenceSound(0.32);
+playReferenceSound(0.30,0.90);
 }
 
 function touchSlime(x,y,dragSound=false){
@@ -238,10 +260,18 @@ document.addEventListener("pointerdown",event=>{
 if(event.target.closest(".top-ui")||event.target.closest(".control-panel"))return;
 
 isDragging=true;
-nextDragSoundTime=performance.now()+220;
+nextDragSoundTime=performance.now()+140;
 
 const rect=canvas.getBoundingClientRect();
-touchSlime(event.clientX-rect.left,event.clientY-rect.top,false);
+const x=event.clientX-rect.left;
+const y=event.clientY-rect.top;
+
+lastPointerX=x;
+lastPointerY=y;
+lastPointerTime=performance.now();
+dragSpeed=0;
+
+touchSlime(x,y,false);
 startAudioAndPlay(playPressSound);
 });
 
@@ -250,16 +280,31 @@ if(!isDragging)return;
 if(event.target.closest(".top-ui")||event.target.closest(".control-panel"))return;
 
 const rect=canvas.getBoundingClientRect();
-touchSlime(event.clientX-rect.left,event.clientY-rect.top,true);
+const x=event.clientX-rect.left;
+const y=event.clientY-rect.top;
+const now=performance.now();
+const dt=Math.max(8,now-lastPointerTime);
+const distance=Math.hypot(x-lastPointerX,y-lastPointerY);
+
+const instantSpeed=distance/dt;
+dragSpeed=dragSpeed*0.72+instantSpeed*0.28;
+
+lastPointerX=x;
+lastPointerY=y;
+lastPointerTime=now;
+
+touchSlime(x,y,true);
 });
 
 document.addEventListener("pointerup",()=>{
 if(isDragging)playReleaseSound();
 isDragging=false;
+dragSpeed=0;
 });
 
 document.addEventListener("pointercancel",()=>{
 isDragging=false;
+dragSpeed=0;
 });
 
 let backgroundURL=null;
@@ -280,10 +325,13 @@ impactStrength=0;
 impactX=0.5;
 impactY=0.5;
 isDragging=false;
+dragSpeed=0;
+
 if(backgroundURL){
 URL.revokeObjectURL(backgroundURL);
 backgroundURL=null;
 }
+
 background.src="background.png";
 background.onload=()=>uploadBackground();
 backgroundInput.value="";

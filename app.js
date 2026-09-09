@@ -152,6 +152,7 @@ let lastPointerX=0;
 let lastPointerY=0;
 let lastPointerTime=0;
 let dragSpeed=0;
+let dragDistance=0;
 
 const soundFiles=["sounds/sticky01.mp3","sounds/sticky02.mp3","sounds/sticky03.mp3","sounds/sticky04.mp3","sounds/sticky05.mp3","sounds/sticky06.mp3"];
 
@@ -214,17 +215,10 @@ playReferenceSound(0.70,0.96);
 function playDragSound(){
 if(!audioContext||audioContext.state!=="running"||!soundReady)return;
 
-const now=performance.now();
-if(now<nextDragSoundTime)return;
-
 const speed=Math.max(0,Math.min(dragSpeed,2.2));
 const normalized=speed/2.2;
-
-const interval=520-normalized*330;
-nextDragSoundTime=now+interval+Math.random()*80;
-
-const playbackRate=0.78+normalized*0.42;
-const volume=0.25+normalized*0.11;
+const playbackRate=0.80+normalized*0.38;
+const volume=0.25+normalized*0.10;
 
 playReferenceSound(volume,playbackRate);
 }
@@ -272,6 +266,7 @@ lastPointerX=x;
 lastPointerY=y;
 lastPointerTime=performance.now();
 dragSpeed=0;
+dragDistance=0;
 
 touchSlime(x,y,false);
 startAudioAndPlay(playPressSound);
@@ -290,23 +285,31 @@ const distance=Math.hypot(x-lastPointerX,y-lastPointerY);
 
 const instantSpeed=distance/dt;
 dragSpeed=dragSpeed*0.72+instantSpeed*0.28;
+dragDistance+=distance;
+
+while(dragDistance>=45){
+dragDistance-=45;
+playDragSound();
+}
 
 lastPointerX=x;
 lastPointerY=y;
 lastPointerTime=now;
 
-touchSlime(x,y,true);
+touchSlime(x,y,false);
 });
 
 document.addEventListener("pointerup",()=>{
 if(isDragging)playReleaseSound();
 isDragging=false;
 dragSpeed=0;
+dragDistance=0;
 });
 
 document.addEventListener("pointercancel",()=>{
 isDragging=false;
 dragSpeed=0;
+dragDistance=0;
 });
 
 let backgroundURL=null;

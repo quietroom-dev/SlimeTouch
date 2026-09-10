@@ -216,11 +216,15 @@ function playDragSound(){
 if(!audioContext||audioContext.state!=="running"||!soundReady)return;
 
 const speed=Math.max(0,Math.min(dragSpeed,2.2));
-const normalized=speed/2.2;
-const playbackRate=0.80+normalized*0.38;
-const volume=0.25+normalized*0.10;
+const normalizedSpeed=speed/2.2;
+const water=Number(waterAmount.value)/100;
+const playbackRate=0.80+normalizedSpeed*0.38;
+const count=water<0.45?1:water<0.75?2:3;
+const volume=(0.25+normalizedSpeed*0.10)/Math.sqrt(count);
 
-playReferenceSound(volume,playbackRate);
+for(let i=0;i<count;i++){
+setTimeout(()=>playReferenceSound(volume,playbackRate),i*18+Math.random()*12);
+}
 }
 
 function playReleaseSound(){

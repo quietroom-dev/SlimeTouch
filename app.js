@@ -181,7 +181,7 @@ return audioContext;
 }
 
 function chooseSoundIndex(){
-const weights=[0.10,0.25,0.25,0.25,0.075,0.075];
+const weights=[0.15,0,0.05,0.4,0.2,0.2];
 let random=Math.random();
 let index=0;
 for(let i=0;i<weights.length;i++){

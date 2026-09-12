@@ -1,75 +1,28 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-
-  <meta
-    name="viewport"
-    content="width=device-width,
-    initial-scale=1,
-    maximum-scale=1,
-    user-scalable=no,
-    viewport-fit=cover"
-  >
-
-  <title>Water Splash</title>
-
-  <link rel="stylesheet" href="style.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Water Splash</title>
+<link rel="stylesheet" href="style.css">
 </head>
-
 <body>
-
+<div id="loadingScreen"><div class="loadingText">スライム生成中…</div></div>
 <div id="app">
-
-  <img
-    id="background"
-    src="IMG_5503.png"
-    alt=""
-  >
-
-  <canvas id="waterCanvas"></canvas>
-
-  <div class="top-ui">
-
-    <label class="button">
-      背景を変更
-      <input
-        id="backgroundInput"
-        type="file"
-        accept="image/*"
-        hidden
-      >
-    </label>
-
-    <button
-      id="resetButton"
-      class="button"
-    >
-      リセット
-    </button>
-
-  </div>
-
-  <div class="control-panel">
-
-    <div class="water-title">
-      <span>サイズ</span>
-      <span id="waterValue">55%</span>
-    </div>
-
-    <input
-      id="waterAmount"
-      type="range"
-      min="10"
-      max="100"
-      value="35"
-    >
-
-  </div>
-
+<img id="background" src="IMG_5503.png" alt="">
+<canvas id="waterCanvas"></canvas>
+<div class="top-ui">
+<label class="button">背景を変更<input id="backgroundInput" type="file" accept="image/*" hidden></label>
+<button id="resetButton" class="button">リセット</button>
 </div>
-
+<div class="control-panel">
+<div class="water-title">
+<span>サイズ</span>
+<span id="waterValue">35%</span>
+</div>
+<input id="waterAmount" type="range" min="10" max="100" value="35">
+</div>
+</div>
 <script src="app.js"></script>
-
 </body>
 </html>

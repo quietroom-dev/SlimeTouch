@@ -5,6 +5,7 @@ const waterAmount=document.getElementById("waterAmount");
 const waterValue=document.getElementById("waterValue");
 const backgroundInput=document.getElementById("backgroundInput");
 const resetButton=document.getElementById("resetButton");
+const loadingScreen=document.getElementById("loadingScreen");
 
 if(!gl){alert("このブラウザではWebGLを利用できません。");throw new Error("WebGL unavailable");}
 
@@ -146,7 +147,6 @@ let isDragging=false;
 let audioContext=null;
 let soundBuffers=[];
 let soundReady=false;
-let nextDragSoundTime=0;
 let lastSoundIndex=-1;
 let lastPointerX=0;
 let lastPointerY=0;
@@ -154,18 +154,15 @@ let lastPointerTime=0;
 let dragSpeed=0;
 let dragDistance=0;
 
-const soundFiles=["sounds/sticky01.mp3","sounds/sticky02.mp3","sounds/sticky03.mp3","sounds/sticky04.mp3","sounds/sticky05.mp3","sounds/sticky06.mp3"];
+const soundFiles=["sounds/sticky01.mp3","sounds/sticky03.mp3","sounds/sticky04.mp3","sounds/sticky05.mp3","sounds/sticky06.mp3"];
 
 async function initAudio(){
 if(!audioContext){
 const AudioContext=window.AudioContext||window.webkitAudioContext;
-if(!AudioContext)return null;
+if(!AudioContext)throw new Error("AudioContext unavailable");
 audioContext=new AudioContext();
 }
-if(audioContext.state==="suspended")await audioContext.resume();
-
 if(!soundReady){
-try{
 soundBuffers=await Promise.all(soundFiles.map(async file=>{
 const response=await fetch(file);
 if(!response.ok)throw new Error("音声ファイルが見つかりません: "+file);
@@ -173,15 +170,13 @@ const arrayBuffer=await response.arrayBuffer();
 return await audioContext.decodeAudioData(arrayBuffer);
 }));
 soundReady=true;
-}catch(error){
-console.error("音声読み込み失敗:",error);
-}
 }
 return audioContext;
 }
 
 function chooseSoundIndex(){
-const weights=[0.15,0,0.05,0.4,0.2,0.2];
+if(soundBuffers.length===0)return 0;
+const weights=[0.15,0.05,0.4,0.2,0.2];
 let random=Math.random();
 let index=0;
 for(let i=0;i<weights.length;i++){
@@ -194,117 +189,81 @@ return index;
 }
 
 function playReferenceSound(volume=0.7,playbackRate=1.0){
-if(!audioContext||audioContext.state!=="running"||!soundBuffers.length)return;
-
+if(!audioContext||audioContext.state!=="running"||!soundReady||!soundBuffers.length)return;
 const index=chooseSoundIndex();
 const source=audioContext.createBufferSource();
 const gain=audioContext.createGain();
-
 source.buffer=soundBuffers[index];
 source.playbackRate.value=Math.max(0.65,Math.min(1.30,playbackRate*(0.97+Math.random()*0.06)));
 gain.gain.setValueAtTime(volume*(0.90+Math.random()*0.10),audioContext.currentTime);
-
 source.connect(gain).connect(audioContext.destination);
 source.start();
 }
 
-function playPressSound(){
-playReferenceSound(0.70,0.96);
-}
+function playPressSound(){playReferenceSound(0.70,0.96);}
 
 function playDragSound(){
 if(!audioContext||audioContext.state!=="running"||!soundReady)return;
-
 const speed=Math.max(0,Math.min(dragSpeed,2.2));
 const normalizedSpeed=speed/2.2;
 const water=Number(waterAmount.value)/100;
 const playbackRate=0.80+normalizedSpeed*0.38;
 const count=water<0.45?1:water<0.75?2:3;
 const volume=(0.25+normalizedSpeed*0.10)/Math.sqrt(count);
-
-for(let i=0;i<count;i++){
-setTimeout(()=>playReferenceSound(volume,playbackRate),i*18+Math.random()*12);
-}
+for(let i=0;i<count;i++)setTimeout(()=>playReferenceSound(volume,playbackRate),i*18+Math.random()*12);
 }
 
-function playReleaseSound(){
-playReferenceSound(0.30,0.90);
-}
+function playReleaseSound(){playReferenceSound(0.30,0.90);}
 
-function touchSlime(x,y,dragSound=false){
+function touchSlime(x,y){
 const width=canvas.clientWidth;
 const height=canvas.clientHeight;
 if(width<=0||height<=0)return;
-
 impactX=x/width;
 impactY=1-y/height;
 impactStrength=1.0;
-
-if(dragSound)playDragSound();
-}
-
-function startAudioAndPlay(fn){
-if(!audioContext){
-const AudioContext=window.AudioContext||window.webkitAudioContext;
-if(!AudioContext)return;
-audioContext=new AudioContext();
-}
-if(audioContext.state==="suspended"){
-audioContext.resume().then(()=>{initAudio().then(()=>fn()).catch(()=>{});}).catch(()=>{});
-}else{
-initAudio().then(()=>fn()).catch(()=>{});
-}
 }
 
 document.addEventListener("pointerdown",event=>{
 if(event.target.closest(".top-ui")||event.target.closest(".control-panel"))return;
-
 isDragging=true;
-nextDragSoundTime=performance.now()+140;
-
 const rect=canvas.getBoundingClientRect();
 const x=event.clientX-rect.left;
 const y=event.clientY-rect.top;
-
 lastPointerX=x;
 lastPointerY=y;
 lastPointerTime=performance.now();
 dragSpeed=0;
 dragDistance=0;
-
-touchSlime(x,y,false);
-startAudioAndPlay(playPressSound);
+touchSlime(x,y);
+if(audioContext&&audioContext.state==="suspended")audioContext.resume().catch(()=>{});
+if(soundReady)playPressSound();
 });
 
 document.addEventListener("pointermove",event=>{
 if(!isDragging)return;
 if(event.target.closest(".top-ui")||event.target.closest(".control-panel"))return;
-
 const rect=canvas.getBoundingClientRect();
 const x=event.clientX-rect.left;
 const y=event.clientY-rect.top;
 const now=performance.now();
 const dt=Math.max(8,now-lastPointerTime);
 const distance=Math.hypot(x-lastPointerX,y-lastPointerY);
-
 const instantSpeed=distance/dt;
 dragSpeed=dragSpeed*0.72+instantSpeed*0.28;
 dragDistance+=distance;
-
 while(dragDistance>=45){
 dragDistance-=45;
 playDragSound();
 }
-
 lastPointerX=x;
 lastPointerY=y;
 lastPointerTime=now;
-
-touchSlime(x,y,false);
+touchSlime(x,y);
 });
 
 document.addEventListener("pointerup",()=>{
-if(isDragging)playReleaseSound();
+if(isDragging&&soundReady)playReleaseSound();
 isDragging=false;
 dragSpeed=0;
 dragDistance=0;
@@ -321,9 +280,7 @@ let backgroundURL=null;
 backgroundInput.addEventListener("change",event=>{
 const file=event.target.files&&event.target.files[0];
 if(!file)return;
-
 if(backgroundURL)URL.revokeObjectURL(backgroundURL);
-
 backgroundURL=URL.createObjectURL(file);
 background.onload=()=>uploadBackground();
 background.src=backgroundURL;
@@ -335,13 +292,12 @@ impactX=0.5;
 impactY=0.5;
 isDragging=false;
 dragSpeed=0;
-
+dragDistance=0;
 if(backgroundURL){
 URL.revokeObjectURL(backgroundURL);
 backgroundURL=null;
 }
-
-background.src="background.png";
+background.src="IMG_5503.png";
 background.onload=()=>uploadBackground();
 backgroundInput.value="";
 });
@@ -351,7 +307,6 @@ let startTime=performance.now();
 function render(currentTime){
 const time=(currentTime-startTime)/1000;
 impactStrength*=0.985;
-
 gl.useProgram(program);
 gl.uniform1f(timeLocation,time);
 gl.uniform1f(waterLocation,Number(waterAmount.value)/100);
@@ -359,13 +314,21 @@ gl.uniform2f(resolutionLocation,canvas.width,canvas.height);
 gl.uniform2f(backgroundResolutionLocation,background.naturalWidth||1,background.naturalHeight||1);
 gl.uniform2f(impactLocation,impactX,impactY);
 gl.uniform1f(strengthLocation,impactStrength);
-
 gl.activeTexture(gl.TEXTURE0);
 gl.bindTexture(gl.TEXTURE_2D,texture);
 gl.uniform1i(backgroundLocation,0);
 gl.drawArrays(gl.TRIANGLES,0,6);
-
 requestAnimationFrame(render);
 }
 
 requestAnimationFrame(render);
+
+(async()=>{
+try{
+await initAudio();
+if(loadingScreen)loadingScreen.classList.add("hidden");
+}catch(error){
+console.error("音声の先読み失敗:",error);
+if(loadingScreen)loadingScreen.classList.add("hidden");
+}
+})();

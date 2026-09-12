@@ -229,5 +229,5 @@ body {
   }
 
 }
-.app-footer{position:fixed;left:0;right:0;bottom:0;height:58px;z-index:30;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.68);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);box-sizing:border-box}.app-footer a{width:100%;height:100%;display:flex;align-items:center;justify-content:center;gap:10px;color:#fff;text-decoration:none;font-size:12px;line-height:1.2}.app-footer strong{font-size:14px;white-space:nowrap}.app-footer span{white-space:nowrap}.app-footer span:last-child{opacity:.85}
+#app{padding-bottom:76px;box-sizing:border-box}.app-footer{position:fixed;left:0;right:0;bottom:0;height:68px;z-index:30;background:rgba(0,0,0,.72);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);box-sizing:border-box}.app-footer a{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-decoration:none;color:#fff;line-height:1.15;gap:2px}.app-ad-title{font-size:11px;font-weight:500;opacity:.85}.app-ad-name{font-size:16px;font-weight:700;letter-spacing:.04em}.app-ad-description{font-size:10px;font-weight:400;opacity:.85}
 

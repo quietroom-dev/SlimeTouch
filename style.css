@@ -229,3 +229,4 @@ body {
   }
 
 }
+.app-footer{position:fixed;left:0;right:0;bottom:8px;z-index:20;text-align:center;pointer-events:auto}.app-footer a{display:inline-block;padding:6px 14px;border-radius:999px;background:rgba(0,0,0,.42);color:#fff;text-decoration:none;font-size:12px;line-height:1.35;text-shadow:0 1px 3px rgba(0,0,0,.4);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}.app-footer a span{font-size:10px;opacity:.8}

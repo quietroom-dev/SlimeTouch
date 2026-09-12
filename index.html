@@ -7,7 +7,9 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<div id="loadingScreen"><div class="loadingText">スライム生成中…</div></div>
+<div id="loadingScreen" style="position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.28);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);transition:opacity .35s ease,visibility .35s ease;">
+<div class="loadingText" style="padding:14px 22px;border-radius:999px;background:rgba(255,255,255,.9);color:#333;font-size:16px;font-weight:600;letter-spacing:.04em;box-shadow:0 4px 20px rgba(0,0,0,.15);">スライム生成中…</div>
+</div>
 <div id="app">
 <img id="background" src="IMG_5503.png" alt="">
 <canvas id="waterCanvas"></canvas>

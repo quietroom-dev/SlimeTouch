@@ -326,9 +326,13 @@ requestAnimationFrame(render);
 (async()=>{
 try{
 await initAudio();
-if(loadingScreen)loadingScreen.classList.add("hidden");
 }catch(error){
 console.error("音声の先読み失敗:",error);
-if(loadingScreen)loadingScreen.classList.add("hidden");
+}finally{
+if(loadingScreen){
+loadingScreen.style.opacity="0";
+loadingScreen.style.visibility="hidden";
+loadingScreen.style.pointerEvents="none";
+}
 }
 })();
